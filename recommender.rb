@@ -1,9 +1,11 @@
 require_relative 'bi_hash'
 require_relative 'is_numeric'
+require_relative 'split_id_name'
 require_relative 'modified_hash'
 
 class Recommender
 	include IsNumeric
+	include SplitIdName
 
 	def initialize
 		# maximum number of recommendations output
@@ -15,25 +17,12 @@ class Recommender
 		# users_items dataset {user_id : [item_id], ...}
 		@user_items = Hash.new
 
-		# to make building the cosine similarity matrix efficient, also store array of arrays for user_items
-		# i.e. [{user_id: [item_id, ...]}, ...]
-		@user_items_array = Array.new
+		# items dataset {item_id : item_name, ...} {item_name : item_id, ...}
+		@items = BiHash.new
 
 		# cosine similarity matrix {user_id : {user_id : cosine_similarity_value, ...}}
 		@cosine_similarity_matrix = Hash.new
 
-		# items dataset {item_id : item_name, ...} {item_name : item_id, ...}
-		@items = BiHash.new
-
-		# users and categories id dataset {item_id : [category_id], ...}
-		@item_categories = Hash.new
-
-		# to make building the cosine similarity matrix efficient, also store array of arrays for item_categories
-		# i.e. [{item_id: [category_id, ...]}, ...]
-		@item_categories_array = Array.new
-		
-		# categories id and name dataset {category_id : category_name, ...}
-		@categories = BiHash.new
 	end
 
 	# load user, item, category datasets into hashes
@@ -64,11 +53,6 @@ class Recommender
 			end
 		end
 
-		# load user_items hash into user_items_array
-		@user_items.each do |key, value|
-			@user_items_array.push({key => value})
-		end
-		
 		# load item id and item names to items data
 		File.foreach(path + 'mini_proj-items.csv') do |line|
 			# split item by tab
@@ -77,57 +61,15 @@ class Recommender
 			# add to items hash if not nil
 			@items[item[0].to_i] = item[1] if is_numeric?(item[0])
 		end
-
-		# load user category data
-		File.foreach(path + 'mini_proj-categories_items.csv') do |line|
-			# split user id and category id
-			item_category = line.split(' ')
-
-			if is_numeric?(item_category[0])
-
-				# convert user id and category id to integers
-				item_category = item_category.map(&:to_i)
-
-				# if user id exists in hash then append to array of category ids else make new i.e. {user_id : [category_id, ...]}
-				@item_categories[item_category[0]] ? @item_categories[item_category[0]].push(item_category[1]) : @item_categories[item_category[0]] = [item_category[1]]
-			end
-		end
-
-		# load item_categories hash into item_categories_array
-		@item_categories.each do |key, value|
-			@item_categories_array.push({key => value})
-		end
-
-		# load category id names data
-		File.foreach(path + 'mini_proj-categories.csv') do |line|
-			# split line by category_id and category_name (category_id => category_name)
-			category = split_id_name(line.strip)
-
-			# add to users hash if not nil (i.e. id: name)
-			@categories.insert_array_values(category[0], category[1]) if category
-		end
-	end
-
-	# splits user id name information into array
-	def split_id_name line
-		user_id = ''
-
-		for index in 0..line.length-1
-			# append numbers to user id or finish when you hit space or non-numeric
-			is_numeric?(line[index]) ? user_id += line[index] : break
-		end
-
-		# return if not nil
-		user_id.empty? ? nil : [user_id.to_i, line[index+1..-1]]
 	end
 
 	# build user-user cosine similarity matrix
 	# T: O((n ^ 2 - n) / 2)
 	# S: O((n ^ 2 - n) / 2)
-	def build_cosine_similarity_matrix strategy
-		# build matrix depending on the input strategy
-		strategy_hash = {"user-based" => @user_items_array, "content-based" => @item_categories_array}
-		data = strategy_hash[strategy]
+	def build_cosine_similarity_matrix
+		# build matrix depending on the strategy
+		strategy_hash = {"UserBasedRecommender" => @user_items_array, "ContentBasedRecommender" => @item_categories_array}
+		data = strategy_hash[self.class.name]
 
 		for i in 0..data.length-2
 
@@ -148,10 +90,10 @@ class Recommender
 				end
 
 				# if current user key not in hash then create new hash i.e. {user_id: {pair_user_id : cosine_similarity_value, ...}}
-				@cosine_similarity_matrix[current_id] = ModifiedHash.new if not @cosine_similarity_matrix.has_key?(current_id)
+				@cosine_similarity_matrix[current_id] = ModifiedHash.new if not @cosine_similarity_matrix[current_id]
 			
 				# do to next => current as well
-				@cosine_similarity_matrix[next_id] = ModifiedHash.new if not @cosine_similarity_matrix.has_key?(next_id)
+				@cosine_similarity_matrix[next_id] = ModifiedHash.new if not @cosine_similarity_matrix[next_id]
 
 				# add to hash
 				cosine_similarity_value = compute_cosine_similarity(current_items, next_items)
@@ -176,148 +118,4 @@ class Recommender
 		# return cosine similarity value
 		numerator / denominator
 	end
-
-	# return an item of recommendation for user by strategy
-	def recommend username, strategy
-
-		build_cosine_similarity_matrix(strategy)
-
-		# get user id of input username
-		user_id = @users[username]
-
-		# check if user exists in data
-		if user_id
-	
-			# loop through user ids since there may be duplicates usernames
-			user_id.each do |id|
-				# decide which filter
-				strategy == "user-based" ? user_based_filtering(id, username) : content_based_filtering(id, username)
-			end
-
-		# output error message if no username
-		else
-			puts "No such user #{username} in dataset"
-		end
-	end
-
-	# recommendation strategy: similar users
-	def user_based_filtering id, username
-
-		if @cosine_similarity_matrix.has_key?(id)
-			# find closest user to each user id
-			closest_user_id = @cosine_similarity_matrix[id].get_closest
-
-			# if ties in closest similarities then we need to gather all items that should be recommended
-			recommend_item_ids = []
-			closest_user_id.each do |closest_id|
-				recommend_item_ids += @user_items[closest_id]
-			end
-
-			# find username items that do not intersect with closest user items
-			# and iterate through items to get their names
-			recommend_item_names = []
-
-			(recommend_item_ids - @user_items[id]).each do |item_id|
-				recommend_item_names.push(@items[item_id])
-			end
-			
-			# print output: recommended items with (username, user_id)
-			recommend_item_names.empty? ? puts("No items to recommend (#{username}, #{id})") : puts("Recommend #{recommend_item_names} for (#{username}, #{id})")
-		end
-	end
-
-	# recommendation strategy: category recommender
-	def content_based_filtering id, username
-				
-		# track all items that are closest by category to each item purchased by user
-		closest_items = {}
-
-		# check if user has items
-		if @user_items[id]
-
-			# for each item purchased by user
-			@user_items[id].each do |item_id|
-
-				if @cosine_similarity_matrix.has_key?(item_id)
-
-					# find closest items to each item id and keep track of them
-					@cosine_similarity_matrix[item_id].each { |key, value| closest_items[key] = value }
-				end
-			end
-
-			# sort closest items by decreasing cosine similarity value
-			closest_items = closest_items.sort_by{|k, v| v}.reverse.map {|item| item[0]}
-
-			# find username items that do not intersect with recommendable items (use array - array)
-			# intersect with remaining array after (array - array) with itself to get rid of duplicates
-			# and iterate through items to get their names
-			recommend_item_ids = closest_items - @user_items[id]
-			recommend_item_ids = recommend_item_ids & recommend_item_ids
-
-			# max recommendations = 5
-			recommend_item_ids = recommend_item_ids[0..@MAX_RECOMMENDATIONS]
-
-			# convert recommendation items id into names
-			recommend_item_names = []
-			recommend_item_ids.each do |item_id|
-				recommend_item_names.push(@items[item_id]) if @items[item_id]
-			end
-				
-			# print output: recommended items with (username, user_id)
-			recommend_item_names.empty? ? puts("No items to recommend (#{username}, #{id})") : puts("Recommend #{recommend_item_names} for (#{username}, #{id})")
-		end
-	end
-
-	# test with data from instructions 
-	def test
-
-		# user-based test data
-		@users.insert_array_values(1, "John Doe")
-		@users.insert_array_values(2, "Jane Doe")
-		@users.insert_array_values(3, "Jim Doe")
-		@items[1] = "Nike Dunks"
-		@items[2] = "Nike Street Basketball"
-		@items[3] = "Adidas Jersey"
-		@items[4] = "Golf Bag"
-		@user_items[1] = [1]
-		@user_items[2] = [1,2]
-		@user_items[3] = [2,4]
-		@user_items_array.push({1 => [1]})
-		@user_items_array.push({2 => [1,2]})
-		@user_items_array.push({3 => [2,4]})
-
-		# content-based test data
-		@categories[1] = "Shoes"
-		@categories[2] = "Basketball"
-		@categories[3] = "Nike"
-		@categories[4] = "Balls"
-		@categories[5] = "Clothing"
-		@categories[6] = "Adidas"
-		@categories[7] = "Golf"
-		@categories[8] = "Accessories"
-		@item_categories[1] = [1,2,3]
-		@item_categories[2] = [4,2,3]
-		@item_categories[3] = [5,2,6]
-		@item_categories[4] = [7,8]
-		@item_categories_array.push({1 => [1,2,3]})
-		@item_categories_array.push({2 => [4,2,3]})
-		@item_categories_array.push({3 => [5,2,6]})
-		@item_categories_array.push({4 => [7,8]})
-
-		recommend("John Doe", "user-based")
-		recommend("John Doe", "content-based")
-	end
-
-# end recommender class
 end
-
-
-a = Recommender.new
-a.load_data('data/')
-# a.recommend("GARY O", "user-based")
-# a.recommend("John Doe", "content-based")
-# a.recommend("ALEX A", "user-based")
-# a.recommend("VINCE O", "user-based")
-# a.recommend("VINCE O", "content-based")
-
-a.test
