@@ -11,6 +11,19 @@ ruby user_based_recommender.rb
 ruby content_based_recommender.rb
 ```
 
+For a quick test on a smaller dataset, in the file recommender.rb replace
+
+```ruby
+# load user items data
+File.foreach(path + 'mini_proj-items_users.csv') do |line|
+```
+with
+
+```ruby
+# load user items data
+File.foreach(path + 'test_mini_proj-items_users.csv') do |line|
+```
+
 ##Data
 
 The dataset used for this was provided by Retention Science and is under the "data" folder. 
