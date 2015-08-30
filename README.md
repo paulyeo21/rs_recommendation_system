@@ -11,7 +11,7 @@ ruby user_based_recommender.rb
 ruby content_based_recommender.rb
 ```
 
-For a quick test on a smaller dataset, in the file recommender.rb replace
+For a quick test on a smaller dataset, in recommender.rb replace
 
 ```ruby
 # load user items data
