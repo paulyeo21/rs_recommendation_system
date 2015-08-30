@@ -2,7 +2,7 @@
 
 ###Summary
 
-This recommender is made up of three classes: Recommender, UserBasedRecommender, and ContentBasedRecommender. True to their names the UserBasedRecommender uses a user-based filtering algorithm and the ContentBasedRecommender uses a category-based filtering algorithm. The Recommender class holds basic functionality to parse data into relevant data structures. The bulk of the recommender's work is done by building a cosine similarity matrix between users and items.
+This recommender is made up of three classes: Recommender, UserBasedRecommender, and ContentBasedRecommender. True to their names the UserBasedRecommender uses a user-based filtering algorithm and the ContentBasedRecommender uses a category-based filtering algorithm. The Recommender class holds basic functionality to parse data into relevant data structures. The bulk of the recommender's work is done by building a cosine similarity matrix between pairs of users and pairs of items using their associated categories.
 
 To test the two different recommenders:
 ruby user_based_recommender.rb
