@@ -6,6 +6,7 @@ class Recommender
 	include IsNumeric
 
 	def initialize
+		# maximum number of recommendations output
 		@MAX_RECOMMENDATIONS = 5
 
 		# users dataset {user_id : username, ...} {username : id, ...}
@@ -46,8 +47,6 @@ class Recommender
 			# add to users hash if not nil (i.e. id: name)
 			@users.insert_array_values(user[0], user[1]) if user
 		end
-		# puts @users[35688]
-		# puts @users['JACK I']
 
 		# load user items data
 		File.foreach(path + 'mini_proj-items_users.csv') do |line|
@@ -64,8 +63,6 @@ class Recommender
 				@user_items[user_item[0]] ? @user_items[user_item[0]].push(user_item[1]) : @user_items[user_item[0]] = [user_item[1]]
 			end
 		end
-		# puts @user_items[37033]
-		# puts @user_items[35717]
 
 		# load user_items hash into user_items_array
 		@user_items.each do |key, value|
@@ -80,8 +77,6 @@ class Recommender
 			# add to items hash if not nil
 			@items[item[0].to_i] = item[1] if is_numeric?(item[0])
 		end
-		# puts @items[1610]
-		# puts @items['Piston Pin #5']
 
 		# load user category data
 		File.foreach(path + 'mini_proj-categories_items.csv') do |line|
@@ -97,7 +92,6 @@ class Recommender
 				@item_categories[item_category[0]] ? @item_categories[item_category[0]].push(item_category[1]) : @item_categories[item_category[0]] = [item_category[1]]
 			end
 		end
-		# puts @item_categories[1155]
 
 		# load item_categories hash into item_categories_array
 		@item_categories.each do |key, value|
@@ -112,9 +106,6 @@ class Recommender
 			# add to users hash if not nil (i.e. id: name)
 			@categories.insert_array_values(category[0], category[1]) if category
 		end
-		# puts @categories[124]
-		# puts @categories['Unicycles']
-
 	end
 
 	# splits user id name information into array
@@ -156,9 +147,6 @@ class Recommender
 					next_items = value
 				end
 
-				# puts "comparing #{current_id}'s items: #{current_items}"
-				# puts "with #{next_id}'s items: #{next_items}"
-
 				# if current user key not in hash then create new hash i.e. {user_id: {pair_user_id : cosine_similarity_value, ...}}
 				@cosine_similarity_matrix[current_id] = ModifiedHash.new if not @cosine_similarity_matrix.has_key?(current_id)
 			
@@ -177,7 +165,7 @@ class Recommender
 	end
 
 	# output hash of cosine similarity values
-	# function = x dot y / ||x|| * ||y||
+	# formula: x dot y / ||x|| * ||y||
 	def compute_cosine_similarity current_items, next_items
 		# find numerator by finding the number of the intersection of items
 		numerator = (current_items & next_items).length
@@ -185,121 +173,98 @@ class Recommender
 		# find denominator by finding the product of the square root of the number of items of each user
 		denominator = Math.sqrt(current_items.length) * Math.sqrt(next_items.length)
 
-		# puts "cosine similarity value of #{current_items} and #{next_items}: #{numerator/denominator}"
-		# puts
-
 		# return cosine similarity value
 		numerator / denominator
 	end
 
 	# return an item of recommendation for user by strategy
 	def recommend username, strategy
-		# build cosine similarity matrix
+
 		build_cosine_similarity_matrix(strategy)
 
-		strategy == "user-based" ? user_based(username) : content_based(username)
-	end
-
-	def user_based username
-		# get user id of input username
-		user_id = @users[username]
-		# puts "there are this many user_ids with the input username #{user_id}"
-
-		# loop through user ids since there may be duplicates usernames
-		user_id.each do |id|
-			if @cosine_similarity_matrix.has_key?(id)
-				# find closest user to each user id
-				closest_user_id = @cosine_similarity_matrix[id].get_closest
-
-				# puts "current user_id #{id}"
-				# puts "closest_user_id #{closest_user_id}"
-				# puts "current user items #{@user_items[id]}"
-				# puts "other similarities #{@cosine_similarity_matrix[id]}"
-
-				# if ties in closest similarities then we need to gather all items that should be recommended
-				all_recommendable_items = []
-				closest_user_id.each do |closest_id|
-					# puts "closest_user #{closest_id}'s items #{@user_items[closest_id]}"
-					all_recommendable_items += @user_items[closest_id]
-				end
-
-				# find username items that do not intersect with closest user items
-				# and iterate through items to get their names
-				recommend_items = []
-				# print (all_recommendable_items - @user_items[id])
-				# puts
-				(all_recommendable_items - @user_items[id]).each do |item_id|
-					recommend_items.push(@items[item_id])
-				end
-				
-				# print output: recommended items with (username, user_id)
-				recommend_items.empty? ? puts("No items to recommend (#{username}, #{id})") : puts("Recommend #{recommend_items} for (#{username}, #{id})")
-			end
-		end
-	end
-
-	def content_based username
 		# get user id of input username
 		user_id = @users[username]
 
 		# check if user exists in data
 		if user_id
-
+	
 			# loop through user ids since there may be duplicates usernames
 			user_id.each do |id|
+				# decide which filter
+				strategy == "user-based" ? user_based_filtering(id, username) : content_based_filtering(id, username)
+			end
+
+		# output error message if no username
+		else
+			puts "No such user #{username} in dataset"
+		end
+	end
+
+	# recommendation strategy: similar users
+	def user_based_filtering id, username
+
+		if @cosine_similarity_matrix.has_key?(id)
+			# find closest user to each user id
+			closest_user_id = @cosine_similarity_matrix[id].get_closest
+
+			# if ties in closest similarities then we need to gather all items that should be recommended
+			recommend_item_ids = []
+			closest_user_id.each do |closest_id|
+				recommend_item_ids += @user_items[closest_id]
+			end
+
+			# find username items that do not intersect with closest user items
+			# and iterate through items to get their names
+			recommend_item_names = []
+
+			(recommend_item_ids - @user_items[id]).each do |item_id|
+				recommend_item_names.push(@items[item_id])
+			end
+			
+			# print output: recommended items with (username, user_id)
+			recommend_item_names.empty? ? puts("No items to recommend (#{username}, #{id})") : puts("Recommend #{recommend_item_names} for (#{username}, #{id})")
+		end
+	end
+
+	# recommendation strategy: category recommender
+	def content_based_filtering id, username
 				
-				# track all items that are closest by category to each item purchased by user
-				closest_items = {}
+		# track all items that are closest by category to each item purchased by user
+		closest_items = {}
 
-				# puts "#{id}, #{@user_items[id]}"
+		# check if user has items
+		if @user_items[id]
 
-				# check if user has items
-				if @user_items[id]
+			# for each item purchased by user
+			@user_items[id].each do |item_id|
 
-					# for each item purchased by user
-					@user_items[id].each do |item_id|
+				if @cosine_similarity_matrix.has_key?(item_id)
 
-						if @cosine_similarity_matrix.has_key?(item_id)
-
-							# puts "user's #{item_id} closest to: #{@cosine_similarity_matrix[item_id]}"
-
-							# find closest items to each item id and keep track of them
-							@cosine_similarity_matrix[item_id].each { |key, value| closest_items[key] = value }
-						end
-					end
-
-					# puts "#{closest_items}"
-
-					# sort closest items by decreasing cosine similarity value
-					closest_items = closest_items.sort_by{|k, v| v}.reverse.map {|item| item[0]}
-
-					# puts "#{closest_items}"
-
-					# find username items that do not intersect with recommendable items (use array - array)
-					# intersect with remaining array after (array - array) with itself to get rid of duplicates
-					# and iterate through items to get their names
-					recommend_item_ids = closest_items - @user_items[id]
-					recommend_item_ids = recommend_item_ids & recommend_item_ids
-
-					# max recommendations = 5
-					recommend_item_ids = recommend_item_ids[0..@MAX_RECOMMENDATIONS]
-
-					# puts "current user id #{id} and items #{@user_items[id]}"
-					# puts "recommend items for user #{recommend_item_ids}"
-
-					recommend_item_names = []
-
-					recommend_item_ids.each do |item_id|
-						recommend_item_names.push(@items[item_id]) if @items[item_id]
-					end
-						
-					# print output: recommended items with (username, user_id)
-					recommend_item_names.empty? ? puts("No items to recommend (#{username}, #{id})") : puts("Recommend #{recommend_item_names} for (#{username}, #{id})")
+					# find closest items to each item id and keep track of them
+					@cosine_similarity_matrix[item_id].each { |key, value| closest_items[key] = value }
 				end
 			end
 
-		else
-			puts "No such user #{username} in dataset"
+			# sort closest items by decreasing cosine similarity value
+			closest_items = closest_items.sort_by{|k, v| v}.reverse.map {|item| item[0]}
+
+			# find username items that do not intersect with recommendable items (use array - array)
+			# intersect with remaining array after (array - array) with itself to get rid of duplicates
+			# and iterate through items to get their names
+			recommend_item_ids = closest_items - @user_items[id]
+			recommend_item_ids = recommend_item_ids & recommend_item_ids
+
+			# max recommendations = 5
+			recommend_item_ids = recommend_item_ids[0..@MAX_RECOMMENDATIONS]
+
+			# convert recommendation items id into names
+			recommend_item_names = []
+			recommend_item_ids.each do |item_id|
+				recommend_item_names.push(@items[item_id]) if @items[item_id]
+			end
+				
+			# print output: recommended items with (username, user_id)
+			recommend_item_names.empty? ? puts("No items to recommend (#{username}, #{id})") : puts("Recommend #{recommend_item_names} for (#{username}, #{id})")
 		end
 	end
 
@@ -339,8 +304,8 @@ class Recommender
 		@item_categories_array.push({3 => [5,2,6]})
 		@item_categories_array.push({4 => [7,8]})
 
-		# recommend("John Doe", "user-based")
-		recommend("J.J A", "content-based")
+		recommend("John Doe", "user-based")
+		recommend("John Doe", "content-based")
 	end
 
 # end recommender class
@@ -349,9 +314,10 @@ end
 
 a = Recommender.new
 a.load_data('data/')
-# print a.split_id_name('user_id	name')
-# print a.split_id_name('35713	JUSTIN I')
-# a.build_cosine_similarity_matrix("user-based")
-a.recommend("J.J A", "user-based")
+# a.recommend("GARY O", "user-based")
+# a.recommend("John Doe", "content-based")
+# a.recommend("ALEX A", "user-based")
+# a.recommend("VINCE O", "user-based")
+# a.recommend("VINCE O", "content-based")
 
-# a.test
+a.test
