@@ -1,4 +1,4 @@
-require_relative 'is_numeric'
+require_relative '../modules/is_numeric'
 
 class BiHash < Hash
 	include IsNumeric
