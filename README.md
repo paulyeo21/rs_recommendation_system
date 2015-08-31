@@ -15,7 +15,7 @@ rspec spec/*_test.rb
 
 ###Data
 
-The dataset used for this was provided by Retention Science and is under the "data" folder. 
+The dataset used for this was provided by Retention Science and is under the "data" directory. 
 
 ###Next
 

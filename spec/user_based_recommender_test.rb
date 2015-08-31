@@ -4,6 +4,7 @@ require_relative '../lib/user_based_recommender'
 RSpec.describe UserBasedRecommender do
 	a = UserBasedRecommender.new
 
+	# these tests are on "mini_proj-items_users.csv" and not the "full_mini_proj-items_users.csv"
 	it "test on random user" do
 		expect(a.recommendations("J.J A")).to eq(["Clutch Cable", "EPA Certified Black Muffler", "CDI Electron Ignition Coil", "Chain Idler Pulley with Bearing Wheel"])
 	end
