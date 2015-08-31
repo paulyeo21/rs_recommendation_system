@@ -1,7 +1,7 @@
 require_relative 'bi_hash'
-require_relative 'is_numeric'
-require_relative 'split_id_name'
 require_relative 'modified_hash'
+require_relative '../modules/is_numeric'
+require_relative '../modules/split_id_name'
 
 class Recommender
 	include IsNumeric
@@ -22,11 +22,10 @@ class Recommender
 
 		# cosine similarity matrix {user_id : {user_id : cosine_similarity_value, ...}}
 		@cosine_similarity_matrix = Hash.new
-
 	end
 
 	# load user, item, category datasets into hashes
-	def load_data path=''
+	def load_data path
 
 		# load user data line by line to avoid slurp
 		File.foreach(path + 'mini_proj-users.csv') do |line|
@@ -61,6 +60,23 @@ class Recommender
 			# add to items hash if not nil
 			@items[item[0].to_i] = item[1] if is_numeric?(item[0])
 		end
+	end
+
+	# get username or userid 
+	# input: either user_id or user_name
+	def get_users input
+		@users[input]
+	end
+
+	# get user items
+	def get_user_items user_id
+		@user_items[user_id]
+	end
+
+	# get items
+	# input: either item_id or item_name
+	def get_items input
+		@items[input]
 	end
 
 	# build user-user cosine similarity matrix
@@ -118,4 +134,5 @@ class Recommender
 		# return cosine similarity value
 		numerator / denominator
 	end
+
 end

@@ -17,13 +17,14 @@ class ContentBasedRecommender < Recommender
 
 		# load data into hashes
 		load_data('data/')
+		load_test_data
 
 		# from superclass Recommender
 		build_cosine_similarity_matrix
 	end
 
 	# load additional data that this class needs
-	def load_data path=''
+	def load_data path
 		super
 
 		# load user category data
@@ -56,8 +57,20 @@ class ContentBasedRecommender < Recommender
 		end
 	end
 
+	# get item categories
+	def get_item_categories item_id
+		@item_categories[item_id]
+	end
+
+	# get categories
+	# input: either category id or category name
+	def get_categories input
+		@categories[input]
+	end
+
 	# content-based filtering
-	def recommend username
+	# output: array of items names to recommend
+	def recommendations username
 		# get user id of input username
 		user_id = @users[username]
 
@@ -100,19 +113,24 @@ class ContentBasedRecommender < Recommender
 					recommend_item_ids.each do |item_id|
 						recommend_item_names.push(@items[item_id]) if @items[item_id]
 					end
-						
-					# print output: recommended items with (username, user_id)
-					recommend_item_names.empty? ? puts("No items to recommend (#{username}, #{id})") : puts("Recommend #{recommend_item_names} for (#{username}, #{id})")
-					puts
+
+					# return recommended item names
+					return recommend_item_names
 				end
 			end
 		else
-			puts "No such user #{username} in dataset"
+			return "No such user \"#{username}\" in dataset"
 		end
 	end
 
+	# print what to recommend whom or no items to recommend
+	def recommend username
+		recommend_item_names = recommendations(username)
+		return recommend_item_names.empty? ? "No items to recommend #{username}" : "Recommend #{recommend_item_names} for #{username}"
+	end
+
 	# test run using data from instructions
-	def test
+	def load_test_data
 		@users.insert_array_values(1, "John Doe")
 		@users.insert_array_values(2, "Jane Doe")
 		@users.insert_array_values(3, "Jim Doe")
@@ -141,13 +159,11 @@ class ContentBasedRecommender < Recommender
 		@item_categories_array.push({2 => [4,2,3]})
 		@item_categories_array.push({3 => [5,2,6]})
 		@item_categories_array.push({4 => [7,8]})
-
-		build_cosine_similarity_matrix
-		recommend("John Doe")
 	end
 end
 
-a = ContentBasedRecommender.new
-a.recommend("JACK I")
-a.recommend("J.J A")
-a.test
+# a = ContentBasedRecommender.new
+# a.load_test_data
+# a.recommendations("John Doe")
+# a.recommend("John Doe")
+# a.recommend("J.J A")

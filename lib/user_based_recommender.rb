@@ -11,13 +11,14 @@ class UserBasedRecommender < Recommender
 
 		# load data into hashes
 		load_data('data/')
+		load_test_data
 
 		# from superclass Recommender
 		build_cosine_similarity_matrix
 	end
 
 	# load additional data that this class needs
-	def load_data path=''
+	def load_data path
 		super
 
 		# load user_items hash into user_items_array
@@ -27,7 +28,8 @@ class UserBasedRecommender < Recommender
 	end
 
 	# user-based filtering
-	def recommend username
+	# return array of recommended item names
+	def recommendations username
 		# get user id of input username
 		user_id = @users[username]
 
@@ -66,18 +68,23 @@ class UserBasedRecommender < Recommender
 						recommend_item_names.push(@items[item_id]) if @items[item_id]
 					end
 					
-					# print output: recommended items with (username, user_id)
-					recommend_item_names.empty? ? puts("No items to recommend (#{username}, #{id})") : puts("Recommend #{recommend_item_names} for (#{username}, #{id})")
-					puts
+					# return recommended item names
+					return recommend_item_names
 				end
 			end
 		else
-			puts "No such user #{username} in dataset"
+			return "No such user \"#{username}\" in dataset"
 		end
 	end
 
+	# print recommendations with username
+	def recommend username
+		recommend_item_names = recommendations(username)
+		return recommend_item_names.empty? ? "No items to recommend #{username}" : "Recommend #{recommend_item_names} for #{username}"
+	end
+
 	# test run using data from instructions
-	def test
+	def load_test_data
 		# user-based test data
 		@users.insert_array_values(1, "John Doe")
 		@users.insert_array_values(2, "Jane Doe")
@@ -92,15 +99,10 @@ class UserBasedRecommender < Recommender
 		@user_items_array.push({1 => [1]})
 		@user_items_array.push({2 => [1,2]})
 		@user_items_array.push({3 => [2,4]})
-		
-		build_cosine_similarity_matrix
-		recommend("John Doe")
-		recommend("Jane Doe")
-		recommend("Jim Doe")
 	end
 end
 
-a = UserBasedRecommender.new
-a.recommend("JOHN U")
-a.recommend("J.J A")
-a.test
+# a = UserBasedRecommender.new
+# puts a.recommend("JOHN U")
+# a.recommend("J.J A")
+# a.test
