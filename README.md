@@ -15,12 +15,14 @@ rspec spec/*_test.rb
 
 ###Recommendations
 
-Content-based recommender strategy:
+From root directory 'rs_recommender_system' run these commands
+
+For content-based recommender strategy:
 ```ruby
 ruby lib/content_based_recommender.rb "username"
 ```
 
-User-based recommender strategy:
+For user-based recommender strategy:
 ```ruby
 ruby lib/user_based_recommender.rb "username"
 ```
