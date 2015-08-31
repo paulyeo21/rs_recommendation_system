@@ -7,8 +7,9 @@ This recommender is made up of three classes: Recommender, UserBasedRecommender,
 ###Set-up and Test
 
 ```ruby
-gem install rspec
-# if using rbenv
+# using rbenv
+rbenv local 2.2.2
+bundle
 rbenv rehash
 rspec spec/*_test.rb
 ```
