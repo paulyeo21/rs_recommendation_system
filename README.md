@@ -13,6 +13,18 @@ rbenv rehash
 rspec spec/*_test.rb
 ```
 
+###Recommendations
+
+Content-based recommender strategy:
+```ruby
+ruby lib/content_based_recommender.rb "username"
+```
+
+User-based recommender strategy:
+```ruby
+ruby lib/user_based_recommender.rb "username"
+```
+
 ###Data
 
 The dataset used for this was provided by Retention Science and is under the "data" directory. 

@@ -102,7 +102,8 @@ class UserBasedRecommender < Recommender
 	end
 end
 
-# a = UserBasedRecommender.new
-# puts a.recommend("JOHN U")
-# a.recommend("J.J A")
-# a.test
+def main
+	puts ARGV.length == 1 ? UserBasedRecommender.new.recommend(ARGV[0]) : "Recommender system takes one username as input"
+end
+
+main

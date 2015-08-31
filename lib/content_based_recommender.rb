@@ -162,8 +162,9 @@ class ContentBasedRecommender < Recommender
 	end
 end
 
-# a = ContentBasedRecommender.new
-# a.load_test_data
-# a.recommendations("John Doe")
-# a.recommend("John Doe")
-# a.recommend("J.J A")
+
+def main
+	puts ARGV.length == 1 ? ContentBasedRecommender.new.recommend(ARGV[0]) : "Recommender system takes one username as input"
+end
+
+main
